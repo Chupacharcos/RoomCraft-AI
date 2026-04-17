@@ -18,9 +18,20 @@ def optimize(room: dict, furniture_list: List[dict], n_layouts: int = 5,
     fixed_positions: {furniture_index: {x, y, rotation}} for reoptimize endpoint.
     Returns list of ranked layout dicts.
     """
+    # Scale down iterations/attempts based on total item count to keep latency <10s on CPU
+    n_items = sum(f.get('qty', 1) for f in furniture_list)
+    if n_items >= 7:
+        iterations = min(iterations, 3000)
+        n_attempts = 10
+    elif n_items >= 4:
+        iterations = min(iterations, 5000)
+        n_attempts = 12
+    else:
+        n_attempts = 20
+
     best_layouts = []
 
-    for attempt in range(20):
+    for attempt in range(n_attempts):
         layout = _random_initial_layout(room, furniture_list, fixed_positions)
         if layout is None:
             continue
