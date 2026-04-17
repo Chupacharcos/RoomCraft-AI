@@ -80,52 +80,176 @@ def optimize(room: dict, furniture_list: List[dict], n_layouts: int = 5,
     return results
 
 
+_CHAIR_TYPES   = {'chair', 'chair_arm'}
+_TABLE_TYPES   = {'desk', 'dining_table', 'coffee_table'}
+_WALL_TYPES    = {'bookshelf', 'shelf', 'wardrobe', 'wardrobe_sliding', 'dresser'}
+_BESIDE_TYPES  = {'nightstand'}
+
+
+def _try_place(furn: dict, x: float, y: float, rot: int,
+               placed: list, room: dict) -> Optional[dict]:
+    """Return item dict if placement is valid, else None."""
+    item = {
+        'type': furn['type'],
+        'x': round(x, 2), 'y': round(y, 2),
+        'rotation': rot,
+        'width': furn['width'], 'depth': furn['depth'],
+        'label': furn.get('label'),
+    }
+    if is_valid_placement(placed + [item], room):
+        return item
+    return None
+
+
+def _wall_candidates(furn: dict, room: dict, n: int = 6) -> list:
+    """Return random candidate positions along the 4 walls."""
+    room_w, room_d = room['width'], room['depth']
+    fw, fd = furn['width'], furn['depth']
+    candidates = []
+    for _ in range(n * 4):
+        wall = random.choice(['S', 'N', 'W', 'E'])
+        if wall == 'S':   # y = 0
+            rot = 0
+            w, d = (fw, fd) if rot in (0, 180) else (fd, fw)
+            x = random.uniform(0, max(0, room_w - w))
+            candidates.append((x, 0, rot))
+        elif wall == 'N':  # y = room_d - d
+            rot = 180
+            w, d = (fw, fd) if rot in (0, 180) else (fd, fw)
+            x = random.uniform(0, max(0, room_w - w))
+            candidates.append((x, room_d - d, rot))
+        elif wall == 'W':  # x = 0
+            rot = 90
+            w, d = (fw, fd) if rot in (0, 180) else (fd, fw)
+            y = random.uniform(0, max(0, room_d - d))
+            candidates.append((0, y, rot))
+        else:              # E: x = room_w - w
+            rot = 270
+            w, d = (fw, fd) if rot in (0, 180) else (fd, fw)
+            y = random.uniform(0, max(0, room_d - d))
+            candidates.append((room_w - w, y, rot))
+    return candidates
+
+
+def _adjacent_candidates(furn: dict, anchor: dict, room: dict) -> list:
+    """Return candidate positions adjacent to anchor (front/back/left/right)."""
+    aw = anchor['width'] if anchor['rotation'] in (0, 180) else anchor['depth']
+    ad = anchor['depth'] if anchor['rotation'] in (0, 180) else anchor['width']
+    fw, fd = furn['width'], furn['depth']
+    ax, ay = anchor['x'], anchor['y']
+    room_w, room_d = room['width'], room['depth']
+    gap = 0.03
+
+    candidates = []
+    # In front (south of anchor)
+    for rot in [0, 180]:
+        w = fw if rot in (0, 180) else fd
+        d = fd if rot in (0, 180) else fw
+        cx = ax + aw / 2 - w / 2
+        candidates.append((cx, ay - d - gap, rot))
+    # Behind (north of anchor)
+    for rot in [0, 180]:
+        w = fw if rot in (0, 180) else fd
+        d = fd if rot in (0, 180) else fw
+        cx = ax + aw / 2 - w / 2
+        candidates.append((cx, ay + ad + gap, rot))
+    # Left (west)
+    for rot in [90, 270]:
+        w = fw if rot in (0, 180) else fd
+        d = fd if rot in (0, 180) else fw
+        cy = ay + ad / 2 - d / 2
+        candidates.append((ax - w - gap, cy, rot))
+    # Right (east)
+    for rot in [90, 270]:
+        w = fw if rot in (0, 180) else fd
+        d = fd if rot in (0, 180) else fw
+        cy = ay + ad / 2 - d / 2
+        candidates.append((ax + aw + gap, cy, rot))
+
+    # Clamp to room
+    result = []
+    for (x, y, rot) in candidates:
+        w = fw if rot in (0, 180) else fd
+        d = fd if rot in (0, 180) else fw
+        x = max(0, min(room_w - w, x))
+        y = max(0, min(room_d - d, y))
+        result.append((x, y, rot))
+    return result
+
+
 def _random_initial_layout(room: dict, furniture_list: List[dict],
                             fixed_positions: dict = None) -> Optional[List[dict]]:
-    """Place furniture randomly (respecting fixed positions), return valid layout or None."""
+    """
+    Place furniture with semantic hints:
+    - chairs near desks/tables
+    - shelves/wardrobes against walls
+    Falls back to random placement when hints fail.
+    """
     room_w = room['width']
     room_d = room['depth']
     rotations = [0, 90, 180, 270]
     placed = []
 
     for idx, furn in enumerate(furniture_list):
-        # Check if this piece has a fixed position
+        # Fixed position override
         if fixed_positions and str(idx) in fixed_positions:
             fp = fixed_positions[str(idx)]
-            item = {
+            placed.append({
                 'type': furn['type'],
                 'x': fp['x'], 'y': fp['y'],
                 'rotation': fp.get('rotation', 0),
                 'width': furn['width'], 'depth': furn['depth'],
-                'label': furn.get('label')
-            }
-            placed.append(item)
+                'label': furn.get('label'),
+            })
             continue
 
-        placed_item = False
-        for _ in range(200):
-            rot = random.choice(rotations)
-            w = furn['width'] if rot in (0, 180) else furn['depth']
-            d = furn['depth'] if rot in (0, 180) else furn['width']
-            if w > room_w or d > room_d:
-                continue
-            x = random.uniform(0, room_w - w)
-            y = random.uniform(0, room_d - d)
-            item = {
-                'type': furn['type'],
-                'x': round(x, 2), 'y': round(y, 2),
-                'rotation': rot,
-                'width': furn['width'], 'depth': furn['depth'],
-                'label': furn.get('label')
-            }
-            test = placed + [item]
-            if is_valid_placement(test, room):
-                placed.append(item)
-                placed_item = True
-                break
+        ftype = furn['type']
+        item = None
 
-        if not placed_item:
+        # ── Semantic placement ───────────────────────────────────────────────
+        if ftype in _CHAIR_TYPES:
+            # Try to place adjacent to already-placed desk/table
+            anchors = [p for p in placed if p['type'] in _TABLE_TYPES]
+            if anchors:
+                anchor = anchors[0]  # primary desk
+                for (x, y, rot) in _adjacent_candidates(furn, anchor, room):
+                    item = _try_place(furn, x, y, rot, placed, room)
+                    if item:
+                        break
+
+        elif ftype in _WALL_TYPES:
+            # Try to place against a wall
+            for (x, y, rot) in _wall_candidates(furn, room):
+                item = _try_place(furn, x, y, rot, placed, room)
+                if item:
+                    break
+
+        elif ftype in _BESIDE_TYPES:
+            # Try to place beside a bed
+            beds = [p for p in placed if p['type'] in ('bed_double', 'bed_single')]
+            if beds:
+                for (x, y, rot) in _adjacent_candidates(furn, beds[0], room):
+                    item = _try_place(furn, x, y, rot, placed, room)
+                    if item:
+                        break
+
+        # ── Random fallback ──────────────────────────────────────────────────
+        if item is None:
+            for _ in range(200):
+                rot = random.choice(rotations)
+                w = furn['width'] if rot in (0, 180) else furn['depth']
+                d = furn['depth'] if rot in (0, 180) else furn['width']
+                if w > room_w or d > room_d:
+                    continue
+                x = random.uniform(0, room_w - w)
+                y = random.uniform(0, room_d - d)
+                item = _try_place(furn, x, y, rot, placed, room)
+                if item:
+                    break
+
+        if item is None:
             return None
+        placed.append(item)
 
     return placed if is_valid_placement(placed, room) else None
 
