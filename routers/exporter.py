@@ -56,3 +56,36 @@ async def export_gltf(req: ExportRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generando glTF: {str(e)}")
+
+
+@router.post("/export-usdz")
+async def export_usdz(req: ExportRequest):
+    """Exporta el layout como USDZ para realidad aumentada en iOS/macOS.
+
+    Al abrirlo en un iPhone, Quick Look ofrece «Ver en tu espacio» sin instalar
+    nada. Complementa al glTF, que cubre web y escritorio.
+
+    Requiere la dependencia opcional `usd-core`; sin ella devuelve 503.
+    """
+    from core.usdz_export import UsdNotAvailable, layout_to_usdz_bytes
+
+    try:
+        rank = req.layout.get("rank", 1)
+        usdz_bytes = layout_to_usdz_bytes(
+            req.room,
+            req.layout.get("furniture_positions", []),
+            name=f"RoomCraft Layout {rank}",
+        )
+    except UsdNotAvailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando USDZ: {str(e)}")
+
+    return Response(
+        content=usdz_bytes,
+        media_type="model/vnd.usdz+zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=roomcraft-layout-{rank}.usdz",
+            "Cache-Control": "no-cache",
+        },
+    )

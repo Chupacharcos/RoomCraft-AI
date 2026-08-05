@@ -70,8 +70,23 @@ encerrado en esta aplicación:
 
 | Formato | Endpoint | Para qué |
 |---|---|---|
-| **glTF 2.0** (Khronos) | `POST /export-gltf` | Abre sin plugins en Blender, three.js, Babylon.js, Unity, Unreal, el Visor 3D de Windows y la vista previa de macOS/iOS |
+| **glTF 2.0** (Khronos) | `POST /export-gltf` | Abre sin plugins en Blender, three.js, Babylon.js, Unity, Unreal y el Visor 3D de Windows |
+| **USDZ** (Apple/Pixar) | `POST /export-usdz` | Realidad aumentada en iOS/macOS: Quick Look ofrece «Ver en tu espacio» sin instalar nada |
 | **PDF** | `POST /export-pdf` | Plano técnico acotado, para imprimir o adjuntar |
+
+El USDZ se construye con **OpenUSD** (la implementación de Pixar) y se empaqueta
+con `UsdUtils.CreateNewUsdzPackage`, la ruta oficial: la alineación de 64 bytes y
+el orden interno del ZIP que exige la spec los resuelve la propia librería.
+
+> `usd-core` es una **dependencia opcional** (~150 MB) que sólo necesita este
+> exportador. Sin ella el resto del proyecto funciona igual y el endpoint
+> responde 503 explicando cómo instalarla.
+>
+> **Qué está verificado:** que el paquete cumple la spec USDZ (ZIP sin comprimir,
+> alineado a 64 bytes, layer raíz primero), que OpenUSD lo reabre con la
+> jerarquía correcta, y que declara `upAxis=Y` y `metersPerUnit=1.0`, que es lo
+> que Quick Look necesita para que la escala en AR sea la real. **Qué no:** no se
+> ha probado en un iPhone físico — no dispongo de dispositivo Apple.
 
 ```bash
 curl -X POST http://localhost:8006/api/roomcraft/export-gltf \
