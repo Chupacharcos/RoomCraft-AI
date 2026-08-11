@@ -12,6 +12,34 @@ convierte en medidas y lista de muebles.
 **Licencia:** MIT (ver [LICENSE](LICENSE)) — uso libre, incluido comercial,
 manteniendo el aviso de copyright. Sin garantía ni soporte incluidos.
 
+<!-- LOOP-MAP:START (generado por `php artisan project:loop readme` — no editar a mano) -->
+
+## El bucle que cierra
+
+<p align="center"><img src="https://adrianmoreno-dev.com/bucle/roomcraft-ai.svg" alt="Mapa del bucle de RoomCraft AI — Layout Optimizer & 3D Room Planner" width="900"></p>
+
+**Para** quien está amueblando una habitación desde cero · **Por habitación**
+
+| Etapa | Qué pasa | Quién |
+|---|---|---|
+| **1. Disparador** | Tengo las medidas de la habitación y los muebles, pero no sé cómo colocarlos. | persona |
+| **2. Acción** | Convierte la descripción en lenguaje natural a medidas y lista de muebles, y propone varias distribuciones puntuadas. | software |
+| **3. Medición** | Cada distribución con su puntuación de circulación, luz natural y agrupación funcional. | software |
+| **4. Decisión** | Decido con qué distribución me quedo y me la llevo en 3D o en plano. | persona |
+
+### Lo que no hace
+
+- No mide la habitación: las medidas se las das tú en la descripción.
+- No renderiza fotorrealismo: exporta geometría en glTF, USDZ y un plano en PDF.
+- No compra ni busca muebles: trabaja con los que le dices que tienes.
+
+### Por qué está construido así
+
+- **Exportar en glTF y en USDZ** en vez de un formato propio con visor propio — glTF abre sin plugins en Blender, three.js, Unity o el visor de Windows, y USDZ se ve en realidad aumentada en iOS sin instalar nada.
+- **Varias distribuciones puntuadas** en vez de devolver la distribución óptima — «Óptimo» depende de si te importa más la circulación o la luz. Enseñar varias con su puntuación deja la decisión en quien vive ahí.
+
+<!-- LOOP-MAP:END -->
+
 ## Demo en vivo
 
 [adrianmoreno-dev.com/demo/roomcraft-ai](https://adrianmoreno-dev.com/demo/roomcraft-ai)
