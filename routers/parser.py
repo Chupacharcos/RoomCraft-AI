@@ -39,7 +39,10 @@ async def parse_room(req: ParseRequest):
     client = Groq(api_key=os.getenv('GROQ_API_KEY'))
     try:
         response = client.chat.completions.create(
-            model='llama-3.1-8b-instant',
+            # 2026-09-01: Groq retiró la familia Llama (404 model_not_found).
+            # Modelo distinto al de los agentes de NeuralOps (openai/gpt-oss-*)
+            # para no compartir con ellos el límite de tokens/minuto.
+            model='qwen/qwen3.8-27b',
             messages=[
                 {'role': 'system', 'content': SYSTEM_PROMPT},
                 {'role': 'user', 'content': req.text}
