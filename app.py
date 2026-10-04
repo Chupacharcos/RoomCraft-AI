@@ -23,6 +23,9 @@ app.include_router(optimizer.router, prefix=PREFIX, tags=["optimizer"])
 app.include_router(exporter.router,  prefix=PREFIX, tags=["exporter"])
 app.include_router(catalog.router,   prefix=PREFIX, tags=["catalog"])
 
+from space_analyzer import router
+app.include_router(router, prefix=PREFIX, tags=["analyzer"])
+
 
 @app.get("/")
 async def root():
